@@ -1,0 +1,298 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitAdapt Pro IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: black; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // Iconos de Lucide adaptados para React in-browser
+        const Icon = ({ name, size = 24, className = "" }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const App = () => {
+            const todayDate = new Date('2026-05-06T12:00:00Z');
+            const [isOnboarded, setIsOnboarded] = useState(false);
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [sessionActive, setSessionActive] = useState(null);
+            const [showCycleModal, setShowCycleModal] = useState(false);
+            const [cycleFeeling, setCycleFeeling] = useState('normal');
+            
+            const [profile, setProfile] = useState({
+                periodStart: '2026-05-01',
+                periodEnd: '2026-05-05',
+                trainingStart: '2026-05-01'
+            });
+
+            const [metrics, setMetrics] = useState({
+                fpcRest: 62, cintura: 73, cadera: 98, bristol: 4,
+                monthlyHistory: [
+                    { month: 'Mar', cintura: 74.2, fpc: 65 },
+                    { month: 'Abr', cintura: 73.5, fpc: 63 },
+                    { month: 'May', cintura: 73, fpc: 62 }
+                ]
+            });
+
+            const [exerciseWeights, setExerciseWeights] = useState({
+                "Hip Thrust Pesado": 40, "Peso Muerto Rumano": 60, "Sentadilla Búlgara": 20,
+                "Abducciones": 50, "Remo": 15, "Jalón al Pecho": 40
+            });
+
+            const [restTimer, setRestTimer] = useState(0);
+            const [elapsed, setElapsed] = useState(0);
+            const [workoutStats, setWorkoutStats] = useState({ fpcAvg: '', fpcMax: '', kcal: '' });
+            const [aiFeedback, setAiFeedback] = useState(null);
+
+            useEffect(() => {
+                let interval;
+                if (sessionActive && !aiFeedback) interval = setInterval(() => setElapsed(e => e + 1), 1000);
+                return () => clearInterval(interval);
+            }, [sessionActive, aiFeedback]);
+
+            useEffect(() => {
+                let interval;
+                if (restTimer > 0) interval = setInterval(() => setRestTimer(r => r - 1), 1000);
+                return () => clearInterval(interval);
+            }, [restTimer]);
+
+            const cycleStatus = useMemo(() => {
+                const start = new Date(profile.periodStart);
+                const end = new Date(profile.periodEnd);
+                const isBleeding = todayDate >= start && todayDate <= end;
+                const diff = Math.floor((todayDate - start) / (86400000)) + 1;
+
+                if (isBleeding) return { name: "Fase Menstrual 🩸", color: "text-rose-400", bg: "bg-rose-500/10", msg: "Día " + diff + ". Sangrado activo. Baja intensidad si hay dolor." };
+                if (diff <= 13) return { name: "Fase Folicular 🌱", color: "text-fuchsia-400", bg: "bg-fuchsia-500/10", msg: "Día " + diff + ". Ventana de fuerza. ¡Sube pesos hoy!" };
+                return { name: "Fase Lútea 🍂", color: "text-indigo-400", bg: "bg-indigo-500/10", msg: "Día " + diff + ". Sensibilidad al cortisol alta. Descansa más." };
+            }, [profile.periodStart, profile.periodEnd]);
+
+            const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2, '0')}`;
+
+            const handleFeedback = () => {
+                const max = parseInt(workoutStats.fpcMax);
+                let msg = max >= 165 ? "⚠️ Alerta Cortisol: Pulso muy alto (" + max + "). Descansa más entre series. " : "✅ Cardio Protegido: Mantuviste un pulso sano de " + max + ". ";
+                msg += "En tu " + cycleStatus.name + ", quemar " + workoutStats.kcal + " kcal es ideal. ¡Gran sesión!";
+                setAiFeedback({ msg, safe: max < 165 });
+            };
+
+            const routines = {
+                lower: {
+                    title: "Pierna & Glúteo 🍑",
+                    exercises: [
+                        { n: "Hip Thrust Pesado", s: "4 series", r: "10-12 reps", b: "Fuerza glútea pura.", d: 120 },
+                        { n: "Peso Muerto Rumano", s: "3 series", r: "12 reps", b: "Isquios y glúteo bajo.", d: 120 },
+                        { n: "Sentadilla Búlgara", s: "3 series", r: "10 reps/lado", b: "Glúteo medio y cuádriceps.", d: 120 }
+                    ]
+                }
+            };
+
+            if (!isOnboarded) {
+                return (
+                    <div className="min-h-screen bg-black text-white p-10 flex flex-col justify-center space-y-8 animate-fade-in">
+                        <h1 className="text-5xl font-black italic text-fuchsia-500 text-center tracking-tighter">FITADAPT</h1>
+                        <div className="bg-zinc-900 p-8 rounded-[3.5rem] border border-white/5 space-y-6 shadow-2xl">
+                            <div className="space-y-4">
+                                <div className="bg-black/40 p-5 rounded-2xl">
+                                    <p className="text-[10px] font-black text-zinc-600 uppercase mb-2">Inicio última regla 🩸</p>
+                                    <input type="date" value={profile.periodStart} onChange={e => setProfile({...profile, periodStart: e.target.value})} className="w-full bg-transparent text-fuchsia-500 font-bold outline-none"/>
+                                </div>
+                                <div className="bg-black/40 p-5 rounded-2xl">
+                                    <p className="text-[10px] font-black text-zinc-600 uppercase mb-2">Fin última regla ✨</p>
+                                    <input type="date" value={profile.periodEnd} onChange={e => setProfile({...profile, periodEnd: e.target.value})} className="w-full bg-transparent text-white font-bold outline-none"/>
+                                </div>
+                                <div className="bg-black/40 p-5 rounded-2xl border border-emerald-500/20">
+                                    <p className="text-[9px] font-black text-zinc-600 uppercase mb-2">Inicio del entrenamiento 🚀</p>
+                                    <input type="date" value={profile.trainingStart} onChange={e => setProfile({...profile, trainingStart: e.target.value})} className="w-full bg-transparent text-emerald-400 font-bold outline-none"/>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsOnboarded(true)} className="w-full bg-fuchsia-600 py-6 rounded-[2.5rem] font-black italic uppercase tracking-widest text-sm shadow-xl shadow-fuchsia-600/30">Sincronizar Bio 🧬</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-black text-white pb-24 relative overflow-hidden">
+                    {/* Header */}
+                    <header className={`p-8 pt-12 rounded-b-[4rem] border-b ${cycleStatus.bg} border-white/5`}>
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-3xl font-black italic tracking-tighter">FIT<span className="text-fuchsia-500">ADAPT</span></h1>
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase italic mt-1">Miércoles, 6 de Mayo</p>
+                            </div>
+                            <button onClick={() => setShowCycleModal(true)} className="p-4 bg-zinc-800 rounded-3xl text-fuchsia-500 border border-white/10 active:scale-90 transition-all shadow-lg">
+                                <Icon name="droplets" size={24} />
+                            </button>
+                        </div>
+                        <div className="bg-black/50 backdrop-blur-xl rounded-[2.5rem] p-5 border border-white/10 flex gap-4 items-center">
+                            <div className={`p-3 rounded-2xl bg-black/30 ${cycleStatus.color}`}><Icon name="brain" size={24} /></div>
+                            <div>
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${cycleStatus.color}`}>{cycleStatus.name}</p>
+                                <p className="text-[11px] text-zinc-200 italic leading-snug">{cycleStatus.msg}</p>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Dashboard */}
+                    {activeTab === 'dashboard' && (
+                        <main className="p-6 space-y-6 animate-fade-in">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-zinc-900 p-6 rounded-[2.5rem] border border-white/5">
+                                    <p className="text-[9px] font-black text-zinc-500 uppercase">FPC Reposo</p>
+                                    <p className="text-3xl font-black mt-1 text-white">{metrics.fpcRest} <span className="text-[10px] text-zinc-700">BPM</span></p>
+                                </div>
+                                <div className="bg-zinc-900 p-6 rounded-[2.5rem] border border-white/5 text-right">
+                                    <p className="text-[9px] font-black text-zinc-500 uppercase">Cintura</p>
+                                    <p className="text-3xl font-black mt-1 text-fuchsia-500">{metrics.cintura} <span className="text-[10px] text-zinc-700">CM</span></p>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-zinc-900/30 p-7 rounded-[3rem] border border-white/5 space-y-6">
+                                <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest italic flex items-center gap-2"><Icon name="activity" size={12} className="text-fuchsia-500"/> Tendencia Mensual</p>
+                                <div className="flex items-end gap-3 h-16">
+                                    {metrics.monthlyHistory.map((m, i) => (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                            <div className="w-full bg-fuchsia-500/20 rounded-t-lg relative" style={{height: `${(m.cintura - 70) * 15}%`}}>
+                                                <div className="absolute top-0 inset-x-0 h-0.5 bg-fuchsia-500 shadow-lg"></div>
+                                            </div>
+                                            <span className="text-[8px] font-black text-zinc-600">{m.month}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button onClick={() => setActiveTab('training')} className="w-full p-6 rounded-[3.5rem] font-black text-sm flex justify-between items-center bg-white text-black active:scale-95 shadow-xl">
+                                <span className="italic uppercase tracking-widest">ABRIR GIMNASIO 🏋️‍♀️</span>
+                                <Icon name="chevron-right" size={20} />
+                            </button>
+                        </main>
+                    )}
+
+                    {/* Training */}
+                    {activeTab === 'training' && (
+                        <main className="p-6 space-y-6 animate-fade-in pb-32">
+                            {!sessionActive ? (
+                                <div className="space-y-4">
+                                    <button onClick={() => setSessionActive('lower')} className="w-full bg-zinc-900 border border-white/5 p-8 rounded-[4rem] flex justify-between items-center text-left">
+                                        <div>
+                                            <p className="text-xl font-black uppercase italic text-white">Pierna & Glúteo 🍑</p>
+                                            <p className="text-[10px] text-zinc-600 mt-1 font-black">4 Bloques Clínicos</p>
+                                        </div>
+                                        <Icon name="play" size={24} className="text-fuchsia-500" />
+                                    </button>
+                                </div>
+                            ) : aiFeedback ? (
+                                <div className="p-8 rounded-[3.5rem] bg-emerald-950/40 border border-emerald-500/30 text-center space-y-6">
+                                    <Icon name="brain" size={40} className="mx-auto text-white" />
+                                    <h2 className="text-2xl font-black italic uppercase">Reporte Dory AI</h2>
+                                    <p className="text-sm italic font-medium">{aiFeedback.msg}</p>
+                                    <button onClick={() => {setAiFeedback(null); setSessionActive(null); setActiveTab('dashboard');}} className="w-full bg-white text-black py-6 rounded-[3rem] font-black uppercase italic">Finalizar Día ✅</button>
+                                </div>
+                            ) : (
+                                <div className="space-y-8">
+                                    <div className="flex items-center justify-between p-6 bg-zinc-900/50 rounded-[3rem]">
+                                        <button onClick={() => setSessionActive(null)}><Icon name="chevron-left" /></button>
+                                        <p className="text-2xl font-black italic">{formatTime(elapsed)} / 45:00</p>
+                                    </div>
+                                    {routines[sessionActive].exercises.map((ex, i) => (
+                                        <div key={i} className="bg-zinc-900 p-8 rounded-[4rem] border border-white/5 space-y-4 shadow-xl">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h4 className="text-xl font-black italic text-white uppercase">{ex.n}</h4>
+                                                    <p className="text-[10px] text-fuchsia-500 font-black mt-1 uppercase">{ex.s} • {ex.r}</p>
+                                                </div>
+                                                <button onClick={() => setRestTimer(ex.d)} className="p-4 bg-fuchsia-500/10 rounded-3xl text-fuchsia-500"><Icon name="timer" size={24} /></button>
+                                            </div>
+                                            <p className="text-[11px] italic text-zinc-400">{ex.b}</p>
+                                            <div className="bg-black/50 p-5 rounded-3xl flex justify-between items-center border border-white/5">
+                                                <span className="text-[9px] font-black uppercase text-zinc-600">Peso (lb)</span>
+                                                <input type="number" defaultValue="40" className="w-20 bg-zinc-800 text-center text-white font-black text-2xl p-2 rounded-2xl outline-none"/>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="bg-zinc-900 border border-fuchsia-500/30 p-10 rounded-[4.5rem] space-y-6">
+                                        <h3 className="text-2xl font-black italic text-center">Cierre de Sesión</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input type="number" placeholder="FC Prom" value={workoutStats.fpcAvg} onChange={e => setWorkoutStats({...workoutStats, fpcAvg: e.target.value})} className="bg-black border border-white/10 p-5 rounded-2xl text-center font-black"/>
+                                            <input type="number" placeholder="FC Máx" value={workoutStats.fpcMax} onChange={e => setWorkoutStats({...workoutStats, fpcMax: e.target.value})} className="bg-black border border-white/10 p-5 rounded-2xl text-center font-black text-rose-500"/>
+                                        </div>
+                                        <input type="number" placeholder="KCAL Totales" value={workoutStats.kcal} onChange={e => setWorkoutStats({...workoutStats, kcal: e.target.value})} className="w-full bg-black border border-white/10 p-6 rounded-3xl text-center font-black text-fuchsia-400 text-2xl"/>
+                                        <button onClick={handleFeedback} className="w-full bg-fuchsia-600 py-6 rounded-[3.5rem] font-black italic uppercase shadow-xl">Analizar con Dory AI 🧠</button>
+                                    </div>
+                                </div>
+                            )}
+                        </main>
+                    )}
+
+                    {/* Bio */}
+                    {activeTab === 'health' && (
+                        <main className="p-6 space-y-6 animate-fade-in pb-32">
+                            <h2 className="text-2xl font-black italic text-center">Bio-Sync Central 🧬</h2>
+                            <div className="bg-zinc-900 border border-white/5 p-10 rounded-[4.5rem] space-y-8 shadow-2xl">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2"><p className="text-[10px] font-black text-zinc-500 uppercase text-center italic">FPC Reposo</p><input type="number" value={metrics.fpcRest} onChange={e => setMetrics({...metrics, fpcRest: e.target.value})} className="w-full bg-black p-5 rounded-2xl text-center font-black text-2xl"/></div>
+                                    <div className="space-y-2"><p className="text-[10px] font-black text-zinc-500 uppercase text-center italic">Cintura (cm)</p><input type="number" value={metrics.cintura} onChange={e => setMetrics({...metrics, cintura: e.target.value})} className="w-full bg-black p-5 rounded-2xl text-center font-black text-2xl text-fuchsia-500"/></div>
+                                </div>
+                                <div className="space-y-4 border-t border-white/5 pt-8">
+                                    <p className="text-[10px] font-black text-zinc-500 uppercase italic">Registro Ciclo Menstrual</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input type="date" value={profile.periodStart} onChange={e => setProfile({...profile, periodStart: e.target.value})} className="bg-black p-4 rounded-xl text-[10px] font-bold text-fuchsia-500"/>
+                                        <input type="date" value={profile.periodEnd} onChange={e => setProfile({...profile, periodEnd: e.target.value})} className="bg-black p-4 rounded-xl text-[10px] font-bold text-white"/>
+                                    </div>
+                                </div>
+                                <button onClick={() => {setActiveTab('dashboard'); window.scrollTo(0,0)}} className="w-full bg-white text-black py-7 rounded-[4rem] font-black shadow-2xl uppercase italic tracking-widest text-sm">Actualizar 💾</button>
+                            </div>
+                        </main>
+                    )}
+
+                    {/* Nav Bar */}
+                    <nav className="fixed bottom-6 left-6 right-6 h-20 bg-zinc-900/90 backdrop-blur-3xl rounded-full border border-white/10 flex items-center justify-around px-4 shadow-2xl z-50">
+                        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-3 ${activeTab === 'dashboard' ? 'text-fuchsia-500' : 'text-zinc-600'}`}><Icon name="activity" size={24} /></button>
+                        <button onClick={() => setActiveTab('training')} className={`flex flex-col items-center p-3 ${activeTab === 'training' ? 'text-fuchsia-500' : 'text-zinc-600'}`}><Icon name="dumbbell" size={24} /></button>
+                        <button onClick={() => setActiveTab('health')} className={`flex flex-col items-center p-3 ${activeTab === 'health' ? 'text-fuchsia-500' : 'text-zinc-600'}`}><Icon name="droplets" size={24} /></button>
+                    </nav>
+
+                    {/* Rest Timer */}
+                    {restTimer > 0 && (
+                        <div className="fixed bottom-28 left-8 right-8 z-[100] bg-fuchsia-600 p-7 rounded-[4rem] shadow-2xl flex justify-between items-center animate-bounce border-4 border-black">
+                            <div className="flex items-center gap-4">
+                                <Icon name="timer" size={32} />
+                                <div className="leading-none">
+                                    <p className="text-[10px] font-black uppercase text-fuchsia-200">Baja tus BPM</p>
+                                    <p className="text-3xl font-black italic">{formatTime(restTimer)}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setRestTimer(0)} className="text-[10px] font-black uppercase underline">Skip ⏭️</button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+```
